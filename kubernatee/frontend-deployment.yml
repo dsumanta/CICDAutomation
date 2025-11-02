@@ -32,7 +32,7 @@ spec:
       - name: frontend
         # Replace with your actual frontend image
         # For Vite, build with 'npm run build' and serve 'dist' folder via nginx
-        image: dsumanta/ai-frontend:1.23
+        image: dsumanta/ai-frontend:1.41
         imagePullPolicy: Always
         
         ports:
