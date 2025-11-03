@@ -9,11 +9,12 @@ metadata:
   labels:
     app: backend
 spec:
-  type: ClusterIP           # Internal service
+  type: Node           # Internal service
   ports:
   - port: 80
     targetPort: 3000        # Backend listens on 3000, service exposes on 80
     protocol: TCP
+    nodePort: 31001
     name: http
   selector:
     app: backend
