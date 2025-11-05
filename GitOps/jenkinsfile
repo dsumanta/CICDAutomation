@@ -1,10 +1,9 @@
-@Library('Shared') _
+@Library('shared') _
 pipeline {
-    agent {label 'Node'}
+    agent {label 'built-in'}
     
     parameters {
         string(name: 'FRONTEND_DOCKER_TAG', defaultValue: '', description: 'Frontend Docker tag of the image built by the CI job')
-        string(name: 'BACKEND_DOCKER_TAG', defaultValue: '', description: 'Backend Docker tag of the image built by the CI job')
     }
 
     stages {
@@ -19,7 +18,7 @@ pipeline {
         stage('Git: Code Checkout') {
             steps {
                 script{
-                    code_checkout("https://github.com/LondheShubham153/Wanderlust-Mega-Project.git","main")
+                    code_checkout("https://github.com/dsumanta/CICDAutomation.git","master","github")
                 }
             }
         }
@@ -28,7 +27,6 @@ pipeline {
             steps {
                 script{
                     echo "FRONTEND_DOCKER_TAG: ${params.FRONTEND_DOCKER_TAG}"
-                    echo "BACKEND_DOCKER_TAG: ${params.BACKEND_DOCKER_TAG}"
                 }
             }
         }
@@ -37,15 +35,10 @@ pipeline {
         stage("Update: Kubernetes manifests"){
             steps{
                 script{
-                    dir('kubernetes'){
+                    dir('kubernatee'){
+                        def tag = "${params.FRONTEND_DOCKER_TAG}"
                         sh """
-                            sed -i -e s/wanderlust-backend-beta.*/wanderlust-backend-beta:${params.BACKEND_DOCKER_TAG}/g backend.yaml
-                        """
-                    }
-                    
-                    dir('kubernetes'){
-                        sh """
-                            sed -i -e s/wanderlust-frontend-beta.*/wanderlust-frontend-beta:${params.FRONTEND_DOCKER_TAG}/g frontend.yaml
+                            sed -i 's|image: dsumanta/ai-frontend:.*|image: dsumanta/ai-frontend:${tag}|g' frontend-deployment.yml
                         """
                     }
                     
@@ -56,7 +49,7 @@ pipeline {
         stage("Git: Code update and push to GitHub"){
             steps{
                 script{
-                    withCredentials([gitUsernamePassword(credentialsId: 'Github-cred', gitToolName: 'Default')]) {
+                    withCredentials([gitUsernamePassword(credentialsId: 'github', gitToolName: 'Default')]) {
                         sh '''
                         echo "Checking repository status: "
                         git status
@@ -68,7 +61,7 @@ pipeline {
                         git commit -m "Updated environment variables"
                         
                         echo "Pushing changes to github: "
-                        git push https://github.com/LondheShubham153/Wanderlust-Mega-Project.git main
+                        git push https://github.com/dsumanta/CICDAutomation.git master
                     '''
                     }
                 }
@@ -76,50 +69,77 @@ pipeline {
         }
     }
   post {
-        success {
-            script {
-                emailext attachLog: true,
-                from: 'trainwithshubham@gmail.com',
-                subject: "Wanderlust Application has been updated and deployed - '${currentBuild.result}'",
+    success {
+        script {
+            emailext(
+                attachLog: true,
+                from: 'dsumanta31946@gmail.com',
+                subject: "✅ AI Frontend Application has been updated and deployed",
                 body: """
                     <html>
-                    <body>
-                        <div style="background-color: #FFA07A; padding: 10px; margin-bottom: 10px;">
-                            <p style="color: black; font-weight: bold;">Project: ${env.JOB_NAME}</p>
+                    <body style="font-family: Arial, sans-serif;">
+                        <h2 style="color: #333;">🚀 Deployment Successful</h2>
+                        
+                        <div style="background-color: #FFA07A; padding: 15px; margin-bottom: 10px; border-radius: 5px;">
+                            <h3 style="color: white; margin: 0;">Build Information</h3>
+                            <p style="color: white; margin: 5px 0;">
+                                <strong>Job:</strong> ${JOB_NAME}<br>
+                                <strong>Build Number:</strong> ${BUILD_NUMBER}<br>
+                                <strong>Build URL:</strong> ${BUILD_URL}
+                            </p>
                         </div>
-                        <div style="background-color: #90EE90; padding: 10px; margin-bottom: 10px;">
-                            <p style="color: black; font-weight: bold;">Build Number: ${env.BUILD_NUMBER}</p>
+                        
+                        <div style="background-color: #90EE90; padding: 15px; margin-bottom: 10px; border-radius: 5px;">
+                            <h3 style="color: #333; margin: 0;">Deployment Details</h3>
+                            <p style="color: #333; margin: 5px 0;">
+                                <strong>Status:</strong> ✅ SUCCESS<br>
+                                <strong>Application:</strong> AI Frontend<br>
+                            
+                            </p>
                         </div>
-                        <div style="background-color: #87CEEB; padding: 10px; margin-bottom: 10px;">
-                            <p style="color: black; font-weight: bold;">URL: ${env.BUILD_URL}</p>
+                        
+                        <div style="background-color: #87CEEB; padding: 15px; margin-bottom: 10px; border-radius: 5px;">
+                            <h3 style="color: white; margin: 0;">Environment</h3>
+                            <p style="color: white; margin: 5px 0;">
+                                <strong>Environment:</strong> Production<br>
+                            
+                                <strong>Triggered By:</strong> Automatic
+                            </p>
                         </div>
+                        
+                        <hr style="border: none; border-top: 1px solid #ccc; margin: 20px 0;">
+                        <p style="color: #666; font-size: 12px;">
+                            This is an automated email from Jenkins CI/CD Pipeline
+                        </p>
                     </body>
                     </html>
-            """,
-            to: 'trainwithshubham@gmail.com',
-            mimeType: 'text/html'
-            }
-        }
-      failure {
-            script {
-                emailext attachLog: true,
-                from: 'trainwithshubham@gmail.com',
-                subject: "Wanderlust Application build failed - '${currentBuild.result}'",
-                body: """
-                    <html>
-                    <body>
-                        <div style="background-color: #FFA07A; padding: 10px; margin-bottom: 10px;">
-                            <p style="color: black; font-weight: bold;">Project: ${env.JOB_NAME}</p>
-                        </div>
-                        <div style="background-color: #90EE90; padding: 10px; margin-bottom: 10px;">
-                            <p style="color: black; font-weight: bold;">Build Number: ${env.BUILD_NUMBER}</p>
-                        </div>
-                    </body>
-                    </html>
-            """,
-            to: 'trainwithshubham@gmail.com',
-            mimeType: 'text/html'
-            }
+                """,
+                to: 'dsumanta31746@gmail.com',
+                mimeType: 'text/html'
+            )  // ← Don't forget closing parenthesis!
         }
     }
+    
+    failure {
+        script {
+            emailext(
+                attachLog: true,
+                from: 'dsumanta31946@gmail.com',
+                subject: "❌ AI Frontend Application Deployment FAILED",
+                body: """
+                    <html>
+                    <body style="font-family: Arial, sans-serif;">
+                        <h2 style="color: red;">❌ Deployment Failed</h2>
+                        <p>Pipeline failed at: ${JOB_NAME} #${BUILD_NUMBER}</p>
+                        <p><a href="${BUILD_URL}console">View Console Output</a></p>
+                    </body>
+                    </html>
+                """,
+                to: 'dsumanta31746@gmail.com',
+                mimeType: 'text/html'
+            )
+        }
+    }
+}
+
 }
